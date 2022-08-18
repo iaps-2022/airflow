@@ -1,0 +1,103 @@
+x-refy-build: &refy-build
+  context: ./
+  dockerfile: ./Dockerfile-new
+
+version: '3'
+
+services:
+  redis:
+    image: 'redis:5.0.3'
+    command: redis-server
+
+  postgres:
+    image: postgres:13.2
+    env_file: docker/.env
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    ports:
+      - 5438:5438
+    command: -p 5438
+
+  webserver:
+    env_file: docker/.env
+    build: *refy-build
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+        - ./dags:/usr/local/airflow/dags
+    ports:
+        - "8080:8080"
+    command: webserver
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  webserver-init:
+    env_file: docker/.env
+    build: *refy-build
+    depends_on:
+      - postgres
+      - redis
+    entrypoint: ["/docker-init.sh"]
+
+
+  flower:
+    build: *refy-build
+    env_file: docker/.env
+    restart: always
+    depends_on:
+      - redis
+      - webserver
+    ports:
+      - "5555:5555"
+    command: flower
+
+  scheduler:
+    build: *refy-build
+    restart: always
+    depends_on:
+      - webserver
+    volumes:
+      - ./dags:/usr/local/airflow/dags
+    env_file: docker/.env
+    command: scheduler
+
+  worker:
+    build: *refy-build
+    restart: always
+    depends_on:
+      - webserver
+      - scheduler
+    volumes:
+      - ./dags:/usr/local/airflow/dags
+    env_file: docker/.env
+    # cap_add:
+    #   - NET_ADMIN
+    #   - CAP_SYS_ADMIN
+    privileged: true
+    command: worker
+
+#  worker2:
+#    image: airflow:latest
+#    restart: always
+#    depends_on:
+#      - webserver
+#      - scheduler
+#    volumes:
+#      - ./dags:/usr/local/airflow/dags
+#    environment:
+#      - REDIS_HOST=redis
+#      - REDIS_PORT=6379
+#      - POSTGRES_HOST=postgres
+#      - POSTGRES_PORT=5432
+#      - POSTGRES_USER=airflow
+#      - POSTGRES_PASSWORD=airflow
+#      - POSTGRES_DB=airflow
+#      - FERNET_KEY=${AIRFLOW_FERNET_KEY}
+#      - AIRFLOW_BASE_URL=http://localhost:8080
+#      - ENABLE_REMOTE_LOGGING=False
+#      - STAGE=dev
+#    command: worker

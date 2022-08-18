@@ -1,0 +1,54 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws --version
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $BUILD_REPOSITORY_URL
+      - docker login  --username  $DOCKERHUB_USER --password  $DOCKERHUB_PASSWORD
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker --version
+      - DOCKER_BUILDKIT=1 docker build -f ./Dockerfile-new --target base -t $BUILD_REPOSITORY_NAME .
+      - docker tag $BUILD_REPOSITORY_NAME $BUILD_REPOSITORY_URL/$BUILD_REPOSITORY_NAME:$BUILD_IMAGE_TAG
+      - docker image ls
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $BUILD_REPOSITORY_URL/$BUILD_REPOSITORY_NAME:$BUILD_IMAGE_TAG
+      - echo Writing image definitions file...
+      - mkdir imagedefs
+      - printf '[{"name":"%s","imageUri":"%s"}]' $SERVICE_AIRFLOW_WEBSERVER $BUILD_REPOSITORY_URL/$BUILD_REPOSITORY_NAME:$BUILD_IMAGE_TAG > imagedefs/imagedefinitions_webserver.json
+      - printf '[{"name":"%s","imageUri":"%s"}]' $SERVICE_AIRFLOW_SCHEDULER $BUILD_REPOSITORY_URL/$BUILD_REPOSITORY_NAME:$BUILD_IMAGE_TAG > imagedefs/imagedefinitions_scheduler.json
+      - printf '[{"name":"%s","imageUri":"%s"}]' $SERVICE_AIRFLOW_FLOWER $BUILD_REPOSITORY_URL/$BUILD_REPOSITORY_NAME:$BUILD_IMAGE_TAG > imagedefs/imagedefinitions_flower.json
+      - printf '[{"name":"%s","imageUri":"%s"}]' $SERVICE_AIRFLOW_WORKER $BUILD_REPOSITORY_URL/$BUILD_REPOSITORY_NAME:$BUILD_IMAGE_TAG > imagedefs/imagedefinitions_worker.json
+
+artifacts:
+  files:
+    - imagedefs/*
+  secondary-artifacts:
+    imagedefinitions_webserver:
+      name: imagedefinitions_webserver
+      base-directory: imagedefs
+      files:
+        - imagedefinitions_webserver.json
+    imagedefinitions_scheduler:
+      name: imagedefinitions_scheduler
+      base-directory: imagedefs
+      files:
+        - imagedefinitions_scheduler.json
+    imagedefinitions_flower:
+      name: imagedefinitions_flower
+      base-directory: imagedefs
+      files:
+        - imagedefinitions_flower.json
+    imagedefinitions_worker:
+      name: imagedefinitions_worker
+      base-directory: imagedefs
+      files:
+        - imagedefinitions_worker.json
+

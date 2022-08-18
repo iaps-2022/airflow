@@ -1,0 +1,2 @@
+snowflake-connector-python==2.7.11
+toolz==0.10.0

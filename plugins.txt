@@ -1,0 +1,6 @@
+# pre-requirement when using python 3.7-3.8 for correct plugin import
+importlib-metadata==3.4.0
+
+# airflow plugins
+airflow-code-editor==3.2.1
+black==20.8b1 # adds code formatting capabilities to airflow-code-editor
