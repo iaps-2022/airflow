@@ -150,7 +150,7 @@ EXPOSE 8080 5555 8793
 
 WORKDIR ${AIRFLOW_HOME}
 
-ENTRYPOINT [ "/entrypoint.sh" ]
+# ENTRYPOINT [ "/entrypoint.sh" ]
 
 FROM base as dev
 
